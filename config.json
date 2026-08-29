@@ -1,0 +1,45 @@
+{
+  "_说明": "云端监控源，与本地 skill 保持一致。改 URL 或增删源后，先在本地跑 `python run.py --all --window 400 --source 关键字` 验收，再同步改这里。",
+  "_更新记录": "2026-08-29 新增教务处、校团委、学工部三个源",
+  "days_window": 60,
+  "min_title_len": 6,
+  "limit_per_source": 40,
+  "sources": [
+    {
+      "name": "研招网-通知公告",
+      "url": "http://yz.scnu.edu.cn/tongzhigonggao/",
+      "type": "list",
+      "enabled": true
+    },
+    {
+      "name": "生科院-研究生通知",
+      "url": "https://life.scnu.edu.cn/yanjiushengtongzhi/",
+      "type": "list",
+      "enabled": true
+    },
+    {
+      "name": "生科院-本科生通知",
+      "url": "https://life.scnu.edu.cn/benkeshengtongzhi/",
+      "type": "list",
+      "enabled": true
+    },
+    {
+      "name": "本科生院-通知公告",
+      "url": "https://jw.scnu.edu.cn/ann/9.html",
+      "type": "list",
+      "enabled": true
+    },
+    {
+      "name": "校团委-通知公告",
+      "url": "https://youth.scnu.edu.cn/announce/3.html",
+      "type": "list",
+      "enabled": true
+    },
+    {
+      "name": "学工部-通知公告",
+      "url": "https://module.scnu.edu.cn/tag-3358-%E5%8D%8E%E5%8D%97-0-74.html",
+      "type": "list",
+      "enabled": true
+    }
+  ]
+}
