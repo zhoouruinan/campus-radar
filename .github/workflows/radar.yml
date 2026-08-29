@@ -1,0 +1,45 @@
+name: 校园通知雷达
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 拉取仓库
+        uses: actions/checkout@v4
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 运行雷达
+        env:
+          SMTP_AUTH_CODE: ${{ secrets.SMTP_AUTH_CODE }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+        run: python radar.py
+
+      - name: 每日心跳
+        if: github.event.schedule == '0 0 * * *'
+        run: date -u +"%Y-%m-%dT%H:%M:%SZ" > heartbeat.txt
+
+      - name: 提交已读记录
+        run: |
+          git config user.name "radar-bot"
+          git config user.email "radar-bot@users.noreply.github.com"
+          git pull --rebase --autostash origin ${{ github.ref_name }} || true
+          git add seen.json heartbeat.txt 2>/dev/null || git add seen.json
+          if git diff --quiet --cached; then
+            echo "无变化，跳过提交"
+          else
+            git commit -m "更新已读记录 $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git push origin ${{ github.ref_name }}
+          fi
