@@ -2,21 +2,23 @@ name: 校园通知雷达
 
 on:
   schedule:
+    # UTC 时间。北京 = UTC+8。这里每小时整点跑一次。
+    # 注意：GitHub 不保证准点，高峰期可能延迟 5-20 分钟，这是免费的代价。
     - cron: '0 * * * *'
-  workflow_dispatch:
+  workflow_dispatch:            # 允许在 GitHub 网页上手动点一下立即执行
 
 jobs:
   radar:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write           # 需要把更新后的 seen.json 提交回仓库
 
     steps:
       - name: 拉取仓库
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 准备 Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -27,9 +29,22 @@ jobs:
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
         run: python radar.py
 
+      # GitHub 会在仓库连续 60 天无变动后自动停用定时任务。
+      # 暑假学校停更时 seen.json 可能一直不变，会踩中这个规则，
+      # 所以每天 UTC 0 点（北京早 8 点）写一次心跳文件，保持仓库有活动。
+      #
+      # 注意：不能用 `if: github.event.schedule == '0 0 * * *'` 判断——
+      # 本 workflow 只定义了一条 cron '0 * * * *'，github.event.schedule
+      # 永远等于那条字符串，写成 '0 0 * * *' 会导致心跳永不触发。
+      # 改成直接判断当前 UTC 小时，与 cron 写法解耦。
       - name: 每日心跳
-        if: github.event.schedule == '0 0 * * *'
-        run: date -u +"%Y-%m-%dT%H:%M:%SZ" > heartbeat.txt
+        run: |
+          if [ "$(date -u +%H)" = "00" ]; then
+            date -u +"%Y-%m-%dT%H:%M:%SZ" > heartbeat.txt
+            echo "已写入心跳文件"
+          else
+            echo "非心跳时段（UTC $(date -u +%H) 点），跳过"
+          fi
 
       - name: 提交已读记录
         run: |
