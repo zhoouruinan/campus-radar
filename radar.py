@@ -27,7 +27,7 @@ import ssl
 import sys
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -279,6 +279,19 @@ def send_mail(subject, html, to_addr, sender, auth_code):
 
 def main():
     dry = "--dry-run" in sys.argv
+
+    # 若本地 48 小时内有心跳，说明电脑开着，云端跳过，避免和本地重复推送/发失败邮件
+    HEARTBEAT = ROOT / "last_local_run.txt"
+    if HEARTBEAT.exists():
+        try:
+            last = HEARTBEAT.read_text(encoding="utf-8").strip()
+            last_dt = datetime.fromisoformat(last)
+            if datetime.now(timezone.utc) - last_dt < timedelta(hours=48):
+                print("LOCAL_ACTIVE_SKIP")
+                return 0
+        except ValueError:
+            pass
+
     today = date.today()
 
     cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
