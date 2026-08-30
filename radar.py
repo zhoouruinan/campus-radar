@@ -369,9 +369,14 @@ def main():
     try:
         send_mail(subject, html, to_addr, sender, auth)
     except Exception as exc:
-        log(f"[失败] 邮件发送失败: {type(exc).__name__}: {exc}")
+        # 注意：这里刻意不让整轮「失败」。
+        # GitHub Actions 一旦 conclusion=failure，就会给仓库所有者发一封失败通知邮件，
+        # 而云端是每小时/每 3 小时跑一次的，SMTP 一挂就会变成邮件轰炸。
+        # 改成 warning 注解：日志里依然醒目可见，但不会触发失败通知，也不会污染运行状态。
+        log(f"::warning::邮件发送失败: {type(exc).__name__}: {exc}")
+        log("::warning::请到 GitHub → Settings → Secrets 更新 SMTP_AUTH_CODE（QQ 邮箱授权码会随改密码失效）")
         log("[重要] seen.json 未更新，下一轮会自动重试")
-        return 3
+        return 0
 
     # 只有发送成功才标记已读
     for it in pending:
