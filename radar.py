@@ -280,6 +280,23 @@ def send_mail(subject, html, to_addr, sender, auth_code):
 def main():
     dry = "--dry-run" in sys.argv
 
+    # ── 云端降频 ────────────────────────────────────────────────
+    # 只在 UTC 0/3/6/9/12/15/18/21 点真正干活，其余小时空转退出。
+    #
+    # 为什么写在代码里而不是改 yml 的 cron：
+    # 修改 .github/workflows/ 下的文件需要 PAT 带 `workflow` 权限，
+    # 而当前 token 只有 `repo`，GitHub 会对写入请求返回 404。
+    # 写在代码里效果完全一致，且不需要用户再去生成新 token。
+    # 若以后手动把 cron 改成 '0 */3 * * *'，这里的判断依然兼容（0/3/6... 都在集合内）。
+    #
+    # 用 GITHUB_ACTIONS 判断，保证本地 --dry-run 调试时不受影响。
+    RUN_HOURS = {0, 3, 6, 9, 12, 15, 18, 21}
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        hour = datetime.now(timezone.utc).hour
+        if hour not in RUN_HOURS:
+            print(f"IDLE_HOUR_SKIP (UTC {hour} 点，非巡检时段)")
+            return 0
+
     # 若本地 48 小时内有心跳，说明电脑开着，云端跳过，避免和本地重复推送/发失败邮件
     HEARTBEAT = ROOT / "last_local_run.txt"
     if HEARTBEAT.exists():
