@@ -378,6 +378,20 @@ def main():
         print("NO_NEW")
         return 0
 
+    # ── 云端推送总开关（已永久停用）────────────────────────
+    # 原因：QQ 邮箱 SMTP 拦截 GitHub Actions 的境外服务器 IP，
+    #       登录即 SMTPServerDisconnected，换授权码也无效。
+    #
+    # 关键约束：这里【不能】把新条目写进 seen.json 就走人——否则本地开机后
+    #           读云端 seen 时会误以为「云端已经推过这些」，从而 filter-pending
+    #           把它们滤掉，导致离线期间的通知永久漏推。
+    #
+    # 所以云端离线时也只静默退出：既不发信、也不写 seen。
+    # 全部推送由本地智能体邮箱负责；离线期间的通知会在开机后由本地第一轮补齐。
+    #           （本地 seen.json 一直在本机累积，开机即推；云端 seen 只是它的镜像备份。）
+    print("CLOUD_SEND_DISABLED 云端发信已停用，跳过本轮（交由本地开机补偿）")
+    return 0
+
     # 噪音条目不单独推送，但仍记进 seen，避免下次重复判断
     pending.sort(key=lambda x: (score(x)[0], x.get("date") or ""), reverse=True)
     worth = [it for it in pending if not score(it)[1]]
