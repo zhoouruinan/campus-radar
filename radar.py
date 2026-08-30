@@ -280,6 +280,33 @@ def send_mail(subject, html, to_addr, sender, auth_code):
 def main():
     dry = "--dry-run" in sys.argv
 
+    # ── SMTP 体检开关 ──────────────────────────────────────────
+    # 仓库根目录出现 smtp_check.on 时，只做一次 SMTP 登录连通性自检就退出。
+    #
+    # 存在的理由：QQ 邮箱授权码会随改密码、开启/关闭安全登录而失效，
+    # 但 GitHub Secret 的值只能写不能读，本地无从判断云端那串码还灵不灵，
+    # 只能让 runner 真机登录一次。平时文件不存在，完全不影响正常流程。
+    #
+    # 用法：在仓库里建一个内容为 1 的 smtp_check.on，手动触发一次 workflow，
+    # 看日志里的 SMTP_CHECK_OK / SMTP_CHECK_FAIL，然后删掉该文件。
+    if (ROOT / "smtp_check.on").exists():
+        auth = os.environ.get("SMTP_AUTH_CODE", "")
+        sender = os.environ.get("MAIL_FROM", "")
+        to_addr = os.environ.get("MAIL_TO", "")
+        print(f"SMTP_CHECK sender={sender or '(空)'} to={to_addr or '(空)'} 授权码长度={len(auth)}")
+        if not (auth and sender and to_addr):
+            print("::warning::缺少 Secret：SMTP_AUTH_CODE / MAIL_FROM / MAIL_TO")
+            return 0
+        try:
+            ctx = ssl.create_default_context()
+            with smtplib.SMTP_SSL("smtp.qq.com", 465, context=ctx, timeout=30) as s:
+                s.login(sender, auth)
+            print("SMTP_CHECK_OK 授权码有效，云端发信通道正常")
+        except Exception as exc:
+            print(f"::warning::SMTP_CHECK_FAIL {type(exc).__name__}: {exc}")
+            print("::warning::授权码已失效 → GitHub → Settings → Secrets 更新 SMTP_AUTH_CODE")
+        return 0
+
     # ── 云端降频 ────────────────────────────────────────────────
     # 只在 UTC 0/3/6/9/12/15/18/21 点真正干活，其余小时空转退出。
     #
